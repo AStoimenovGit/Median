@@ -592,11 +592,14 @@ void AVLTree<T, Compare>::Node::Balance()
 		Node*	pPrevParent = pPrev->m_pParent;
 		assert(pPrevParent && pPrevParent != this);
 		Node*	pPrevPrev = pPrev->GetPrev();
-		pPrevPrev->Detach();
+		if(pPrevPrev != pPrevParent)
+			pPrevPrev->Detach();
+
 		pPrev->Detach();
 		delete pPrev;
 
-		pPrevParent->AttachRightNode(pPrevPrev);
+		if (pPrevPrev != pPrevParent)
+			pPrevParent->AttachRightNode(pPrevPrev);
 
 		const_cast<T&>(m_value) = prevValue;
 
@@ -613,18 +616,21 @@ void AVLTree<T, Compare>::Node::Balance()
 		Node*	pNext = GetNext();
 		assert(pNext);
 
-		const T	prevValue = pNext->GetValue();
+		const T	nextValue = pNext->GetValue();
 		const T thisValue = GetValue();
 		Node*	pNextParent = pNext->m_pParent;
 		assert(pNextParent && pNextParent != this);
 		Node*	pNextNext = pNext->GetNext();
-		pNextNext->Detach();
+		if(pNextNext != pNextParent)
+			pNextNext->Detach();
+
 		pNext->Detach();
 		delete pNext;
 
-		pNextParent->AttachLeftNode(pNextNext);
+		if (pNextNext != pNextParent)
+			pNextParent->AttachLeftNode(pNextNext);
 
-		const_cast<T&>(m_value) = prevValue;
+		const_cast<T&>(m_value) = nextValue;
 
 		Node*	pLeft = m_pLeft;
 		if (pLeft)
