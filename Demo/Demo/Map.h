@@ -85,7 +85,7 @@ template <class T, class Compare>
 			assert(prev != m_values.end());
 			assert(prev != m_values.begin());
 			--prev;
-			median = (val.first + prev->first) / 2;
+			median = (val.first + prev->first) / static_cast<T>(2);
 		}
 
 		break;

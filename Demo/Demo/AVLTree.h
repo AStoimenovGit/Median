@@ -8,6 +8,8 @@
 
 #include "Median.h"
 
+#define	OPTIMIZE
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <class T>
@@ -65,9 +67,27 @@ private:
 		T		GetValue() const;
 
 		int		GetHeight() const;
-
 		static int GetHeight(const Node* pNode);
 
+	#ifdef OPTIMIZE
+		int		GetSize() const;
+		static int GetSize(const Node* pNode);
+	#endif
+
+		Node*	GetLeft() {
+			return m_pLeft;
+		}
+		const Node* GetLeft() const {
+			return m_pLeft;
+		}
+
+		Node*	GetRight() {
+			return m_pRight;
+		}
+		const Node* GetRight() const {
+			return m_pRight;
+		}
+	
 		Node*	GetFirst();
 		const Node* GetFirst() const {
 			return const_cast<Node*>(this)->GetFirst();
@@ -90,6 +110,9 @@ private:
 
 	private:
 		void	UpdateHeights();
+	#ifdef OPTIMIZE
+		void	UpdateSizes();
+	#endif
 
 		void	Detach();
 		void	AttachNode(Node*& pChild, Node* pNode);
@@ -110,6 +133,9 @@ private:
 	private:
 		const T	m_value;
 		int		m_height;
+	#ifdef OPTIMIZE
+		int		m_size;
+	#endif
 		Node*	m_pLeft;
 		Node*	m_pRight;
 		Node*	m_pParent;
@@ -172,7 +198,20 @@ template <class T, class Compare>
 		return false;
 
 	assert(m_pRoot);
-
+#ifdef OPTIMIZE
+	if (BaseClass::m_size % 2)
+	{
+		median = m_pRoot->GetValue();
+	}
+	else if (Node::GetSize(m_pRoot->GetLeft()) > Node::GetSize(m_pRoot->GetRight()))
+	{
+		median = (m_pRoot->GetValue() + m_pRoot->GetPrev()->GetValue()) / static_cast<T>(2);
+	}
+	else
+	{
+		median = (m_pRoot->GetValue() + m_pRoot->GetNext()->GetValue()) / static_cast<T>(2);
+	}
+#else
 	const Node*	pNode = m_pRoot->GetFirst();
 	const Node*	pPrevNode = nullptr;
 	int	steps = BaseClass::m_size / 2;
@@ -189,12 +228,13 @@ template <class T, class Compare>
 	}
 	else if(pPrevNode)
 	{
-		median = (pPrevNode->GetValue() + pNode->GetValue()) / 2;
+		median = (pPrevNode->GetValue() + pNode->GetValue()) / static_cast<T>(2);
 	}
 	else
 	{
 		median = pNode->GetValue();
 	}
+#endif
 
 	return true;
 }
@@ -205,6 +245,9 @@ template <class T, class Compare>
 inline AVLTree<T, Compare>::Node::Node(const T& value)
 	: m_value(value)
 	, m_height()
+#ifdef OPTIMIZE
+	, m_size(1)
+#endif
 	, m_pLeft()
 	, m_pRight()
 	, m_pParent()
@@ -270,6 +313,16 @@ inline int AVLTree<T, Compare>::Node::GetHeight() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef OPTIMIZE
+template <class T, class Compare>
+inline int AVLTree<T, Compare>::Node::GetSize() const
+{
+	return m_size;
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <class T, class Compare>
 /*static*/ inline int AVLTree<T, Compare>::Node::GetHeight(const Node* pNode)
 {
@@ -278,6 +331,19 @@ template <class T, class Compare>
 	else
 		return -1;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef OPTIMIZE
+template <class T, class Compare>
+/*static*/ inline int AVLTree<T, Compare>::Node::GetSize(const Node* pNode)
+{
+	if (pNode)
+		return pNode->GetSize();
+	else
+		return 0;
+}
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -344,6 +410,19 @@ void AVLTree<T, Compare>::Node::UpdateHeights()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef OPTIMIZE
+template <class T, class Compare>
+void AVLTree<T, Compare>::Node::UpdateSizes()
+{
+	m_size = GetSize(m_pLeft) + 1 + GetSize(m_pRight);
+
+	if (m_pParent)
+		m_pParent->UpdateSizes();
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <class T, class Compare>
 inline void AVLTree<T, Compare>::Node::Detach()
 {
@@ -360,7 +439,12 @@ inline void AVLTree<T, Compare>::Node::Detach()
 	}
 
 	if (m_pParent)
+	{
 		m_pParent->UpdateHeights();
+	#ifdef OPTIMIZE
+		m_pParent->UpdateSizes();
+	#endif
+	}
 
 	m_pParent = nullptr;
 }
@@ -379,6 +463,9 @@ inline void AVLTree<T, Compare>::Node::AttachNode(Node*& pChild, Node* pNode)
 		pChild = pNode;
 		pChild->m_pParent = this;
 		pChild->UpdateHeights();
+	#ifdef OPTIMIZE
+		pChild->UpdateSizes();
+	#endif
 	}
 }
 
@@ -473,8 +560,8 @@ inline void AVLTree<T, Compare>::Node::RotateRight()
 template <class T, class Compare>
 void AVLTree<T, Compare>::Node::Balance()
 {
-	auto	leftHeight = m_pLeft ? m_pLeft->m_height : -1;
-	auto	rightHeight = m_pRight ? m_pRight->m_height : -1;
+	auto	leftHeight = GetHeight(m_pLeft);
+	auto	rightHeight = GetHeight(m_pRight);
 
 	if (leftHeight - rightHeight > 1)
 	{
@@ -490,6 +577,64 @@ void AVLTree<T, Compare>::Node::Balance()
 
 		RotateLeft();
 	}
+
+#ifdef OPTIMIZE
+	auto	leftSize = GetSize(m_pLeft);
+	auto	rightSize = GetSize(m_pRight);
+
+	if (leftSize - rightSize > 1)
+	{
+		Node*	pPrev = GetPrev();
+		assert(pPrev);
+		
+		const T	prevValue = pPrev->GetValue();
+		const T thisValue = GetValue();
+		Node*	pPrevParent = pPrev->m_pParent;
+		assert(pPrevParent && pPrevParent != this);
+		Node*	pPrevPrev = pPrev->GetPrev();
+		pPrevPrev->Detach();
+		pPrev->Detach();
+		delete pPrev;
+
+		pPrevParent->AttachRightNode(pPrevPrev);
+
+		const_cast<T&>(m_value) = prevValue;
+
+		Node*	pRight = m_pRight;
+		if (pRight)
+			pRight->Detach();
+
+		AttachRightNode(new Node(thisValue));
+		m_pRight->AttachRightNode(pRight);
+		m_pRight->Balance();
+	}
+	else if (rightSize - leftSize > 1)
+	{
+		Node*	pNext = GetNext();
+		assert(pNext);
+
+		const T	prevValue = pNext->GetValue();
+		const T thisValue = GetValue();
+		Node*	pNextParent = pNext->m_pParent;
+		assert(pNextParent && pNextParent != this);
+		Node*	pNextNext = pNext->GetNext();
+		pNextNext->Detach();
+		pNext->Detach();
+		delete pNext;
+
+		pNextParent->AttachLeftNode(pNextNext);
+
+		const_cast<T&>(m_value) = prevValue;
+
+		Node*	pLeft = m_pLeft;
+		if (pLeft)
+			pLeft->Detach();
+
+		AttachLeftNode(new Node(thisValue));
+		m_pLeft->AttachLeftNode(pLeft);
+		m_pLeft->Balance();
+	}
+#endif
 
 #ifdef _DEBUG
 	CheckBalanced();
