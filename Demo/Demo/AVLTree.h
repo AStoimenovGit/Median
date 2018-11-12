@@ -122,7 +122,11 @@ private:
 		void	RotateLeft();
 		void	RotateRight();
 
+#ifdef OPTIMIZE
+		void	Balance(bool propagate);
+#else
 		void	Balance();
+#endif
 
 #ifdef _DEBUG
 		T		GetLowBound() const;
@@ -281,7 +285,11 @@ void AVLTree<T, Compare>::Node::Insert(const T& value)
 		else
 		{
 			AttachRightNode(new Node(value));
+#ifdef OPTIMIZE
+			Balance(true);
+#else
 			Balance();
+#endif
 		}
 	}
 	else
@@ -293,7 +301,11 @@ void AVLTree<T, Compare>::Node::Insert(const T& value)
 		else
 		{
 			AttachLeftNode(new Node(value));
+#ifdef OPTIMIZE
+			Balance(true);
+#else
 			Balance();
+#endif
 		}
 	}
 }
@@ -561,7 +573,11 @@ inline void AVLTree<T, Compare>::Node::RotateRight()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <class T, class Compare>
+#ifdef OPTIMIZE
+void AVLTree<T, Compare>::Node::Balance(bool propagate)
+#else
 void AVLTree<T, Compare>::Node::Balance()
+#endif
 {
 	auto	leftHeight = GetHeight(m_pLeft);
 	auto	rightHeight = GetHeight(m_pRight);
@@ -587,63 +603,65 @@ void AVLTree<T, Compare>::Node::Balance()
 
 	if (leftSize - rightSize > 1)
 	{
+		const T thisValue = GetValue();
+
 		Node*	pPrev = GetPrev();
 		assert(pPrev);
-
 		const T	prevValue = pPrev->GetValue();
-		const T thisValue = GetValue();
-		Node*	pPrevParent = pPrev->m_pParent;
-		assert(pPrevParent && pPrevParent != this);
-		Node*	pPrevPrev = pPrev->GetPrev();
-		if (pPrevPrev != pPrevParent)
-			pPrevPrev->Detach();
 
-		pPrev->Detach();
-		delete pPrev;
-		m_pLeft->Balance();
+		assert(!pPrev->m_pRight);
+		if (Node* pPrevLeft = pPrev->m_pLeft)
+		{
+			pPrevLeft->Detach();
 
-		if (pPrevPrev != pPrevParent)
-			pPrevParent->AttachRightNode(pPrevPrev);
+			Node*	pPrevParent = pPrev->m_pParent;
+			assert(pPrevParent);
+			delete pPrev;
+
+			if (pPrevParent == this)
+				pPrevParent->AttachLeftNode(pPrevLeft);
+			else
+				pPrevParent->AttachRightNode(pPrevLeft);
+		}
+		else
+		{
+			delete pPrev;
+		}
+		m_pLeft->Balance(false);
 
 		const_cast<T&>(m_value) = prevValue;
-
-		Node*	pRight = m_pRight;
-		if (pRight)
-			pRight->Detach();
-
-		AttachRightNode(new Node(thisValue));
-		m_pRight->AttachRightNode(pRight);
-		m_pRight->Balance();
+		Insert(thisValue);
 	}
-	else if (rightSize - leftSize > 1)
+	else if(rightSize - leftSize > 1)
 	{
+		const T thisValue = GetValue();
+
 		Node*	pNext = GetNext();
 		assert(pNext);
-
 		const T	nextValue = pNext->GetValue();
-		const T thisValue = GetValue();
-		Node*	pNextParent = pNext->m_pParent;
-		assert(pNextParent && pNextParent != this);
-		Node*	pNextNext = pNext->GetNext();
-		if (pNextNext != pNextParent)
-			pNextNext->Detach();
 
-		pNext->Detach();
-		delete pNext;
-		m_pRight->Balance();
+		assert(!pNext->m_pLeft);
+		if (Node* pNextRight = pNext->m_pRight)
+		{
+			pNextRight->Detach();
 
-		if (pNextNext != pNextParent)
-			pNextParent->AttachLeftNode(pNextNext);
+			Node*	pNextParent = pNext->m_pParent;
+			assert(pNextParent);
+			delete pNext;
+
+			if (pNextParent == this)
+				pNextParent->AttachRightNode(pNextRight);
+			else
+				pNextParent->AttachLeftNode(pNextRight);
+		}
+		else
+		{
+			delete pNext;
+		}
+		m_pRight->Balance(false);
 
 		const_cast<T&>(m_value) = nextValue;
-
-		Node*	pLeft = m_pLeft;
-		if (pLeft)
-			pLeft->Detach();
-
-		AttachLeftNode(new Node(thisValue));
-		m_pLeft->AttachLeftNode(pLeft);
-		m_pLeft->Balance();
+		Insert(thisValue);
 	}
 #endif
 
@@ -651,8 +669,13 @@ void AVLTree<T, Compare>::Node::Balance()
 	CheckBalanced();
 #endif
 
+#ifdef OPTIMIZE
+	if (propagate && m_pParent)
+		m_pParent->Balance(true);
+#else
 	if (m_pParent)
 		m_pParent->Balance();
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -706,10 +729,7 @@ T AVLTree<T, Compare>::Node::GetHighBound() const
 template <class T, class Compare>
 inline void AVLTree<T, Compare>::Node::CheckBalanced() const
 {
-	auto	leftHeight = m_pLeft ? m_pLeft->m_height : -1;
-	auto	rightHeight = m_pRight ? m_pRight->m_height : -1;
-
-	assert(std::abs(leftHeight - rightHeight) <= 1);
+	assert(std::abs(GetHeight(m_pLeft) - GetHeight(m_pRight)) <= 1);
 #ifdef OPTIMIZE
 	assert(std::abs(GetSize(GetLeft()) - GetSize(GetRight())) <= 1);
 #endif // OPTIMIZE
