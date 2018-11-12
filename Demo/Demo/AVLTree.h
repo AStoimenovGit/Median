@@ -72,7 +72,7 @@ private:
 #ifdef OPTIMIZE
 		int		GetSize() const;
 		static int GetSize(const Node* pNode);
-#endif
+#endif // OPTIMIZE
 
 		Node*	GetLeft() {
 			return m_pLeft;
@@ -112,7 +112,7 @@ private:
 		void	UpdateHeights();
 #ifdef OPTIMIZE
 		void	UpdateSizes();
-#endif
+#endif // OPTIMIZE
 
 		void	Detach();
 		void	AttachNode(Node*& pChild, Node* pNode);
@@ -123,10 +123,10 @@ private:
 		void	RotateRight();
 
 #ifdef OPTIMIZE
-		void	Balance(bool propagate);
-#else
+		void	Balance(bool propagate = true);
+#else // OPTIMIZE
 		void	Balance();
-#endif
+#endif // OPTIMIZE
 
 #ifdef _DEBUG
 		T		GetLowBound() const;
@@ -139,7 +139,7 @@ private:
 		int		m_height;
 #ifdef OPTIMIZE
 		int		m_size;
-#endif
+#endif // OPTIMIZE
 		Node*	m_pLeft;
 		Node*	m_pRight;
 		Node*	m_pParent;
@@ -218,7 +218,7 @@ template <class T, class Compare>
 	{
 		median = (m_pRoot->GetValue() + m_pRoot->GetNext()->GetValue()) / static_cast<T>(2);
 	}
-#else
+#else // OPTIMIZE
 	const Node*	pNode = m_pRoot->GetFirst();
 	const Node*	pPrevNode = nullptr;
 	int	steps = BaseClass::m_size / 2;
@@ -241,7 +241,7 @@ template <class T, class Compare>
 	{
 		median = pNode->GetValue();
 	}
-#endif
+#endif // OPTIMIZE
 
 	return true;
 }
@@ -254,7 +254,7 @@ inline AVLTree<T, Compare>::Node::Node(const T& value)
 	, m_height()
 #ifdef OPTIMIZE
 	, m_size(1)
-#endif
+#endif // OPTIMIZE
 	, m_pLeft()
 	, m_pRight()
 	, m_pParent()
@@ -285,11 +285,7 @@ void AVLTree<T, Compare>::Node::Insert(const T& value)
 		else
 		{
 			AttachRightNode(new Node(value));
-#ifdef OPTIMIZE
-			Balance(true);
-#else
 			Balance();
-#endif
 		}
 	}
 	else
@@ -301,11 +297,7 @@ void AVLTree<T, Compare>::Node::Insert(const T& value)
 		else
 		{
 			AttachLeftNode(new Node(value));
-#ifdef OPTIMIZE
-			Balance(true);
-#else
 			Balance();
-#endif
 		}
 	}
 }
@@ -334,7 +326,7 @@ inline int AVLTree<T, Compare>::Node::GetSize() const
 {
 	return m_size;
 }
-#endif
+#endif // OPTIMIZE
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -358,7 +350,7 @@ template <class T, class Compare>
 	else
 		return 0;
 }
-#endif
+#endif // OPTIMIZE
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -434,7 +426,7 @@ void AVLTree<T, Compare>::Node::UpdateSizes()
 	if (m_pParent)
 		m_pParent->UpdateSizes();
 }
-#endif
+#endif // OPTIMIZE
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -458,7 +450,7 @@ inline void AVLTree<T, Compare>::Node::Detach()
 		m_pParent->UpdateHeights();
 #ifdef OPTIMIZE
 		m_pParent->UpdateSizes();
-#endif
+#endif // OPTIMIZE
 	}
 
 	m_pParent = nullptr;
@@ -480,7 +472,7 @@ inline void AVLTree<T, Compare>::Node::AttachNode(Node*& pChild, Node* pNode)
 		pChild->UpdateHeights();
 #ifdef OPTIMIZE
 		pChild->UpdateSizes();
-#endif
+#endif // OPTIMIZE
 	}
 }
 
@@ -575,9 +567,9 @@ inline void AVLTree<T, Compare>::Node::RotateRight()
 template <class T, class Compare>
 #ifdef OPTIMIZE
 void AVLTree<T, Compare>::Node::Balance(bool propagate)
-#else
+#else // OPTIMIZE
 void AVLTree<T, Compare>::Node::Balance()
-#endif
+#endif // OPTIMIZE
 {
 	auto	leftHeight = GetHeight(m_pLeft);
 	auto	rightHeight = GetHeight(m_pRight);
@@ -600,6 +592,7 @@ void AVLTree<T, Compare>::Node::Balance()
 #ifdef OPTIMIZE
 	auto	leftSize = GetSize(m_pLeft);
 	auto	rightSize = GetSize(m_pRight);
+	assert(std::abs(leftSize - rightSize) <= 2);
 
 	if (leftSize - rightSize > 1)
 	{
@@ -663,7 +656,7 @@ void AVLTree<T, Compare>::Node::Balance()
 		const_cast<T&>(m_value) = nextValue;
 		Insert(thisValue);
 	}
-#endif
+#endif // OPTIMIZE
 
 #ifdef _DEBUG
 	CheckBalanced();
@@ -671,11 +664,11 @@ void AVLTree<T, Compare>::Node::Balance()
 
 #ifdef OPTIMIZE
 	if (propagate && m_pParent)
-		m_pParent->Balance(true);
-#else
+		m_pParent->Balance();
+#else // OPTIMIZE
 	if (m_pParent)
 		m_pParent->Balance();
-#endif
+#endif // OPTIMIZE
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
