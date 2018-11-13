@@ -52,7 +52,9 @@
 Най-добрите решения по обща сложност са
 
 ##ifdef OPTIMIZE
+
 AVLTree
+
 #endif
 
 и
